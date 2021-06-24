@@ -11,6 +11,7 @@ from ._utils import _multiclass_threshold, _model_repeat
 
 
 
+
 class StochasticSubsamplingCV:
     '''
     model :  any scikit-learn classifier 
@@ -201,9 +202,9 @@ class StochasticSubsamplingCV:
                 smenn = SMOTEENN(sampling_strategy=self.over_strategy, random_state=j, smote=sm, enn=enn)
                 X_test_,y_test_ = smenn.fit_resample(X_test_,y_test_)
 
-        # Run models
-        report = _model_repeat(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, self.verbose, self.class_labels)
-        df = df.append(report)
+            # Run models
+            report = _model_repeat(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, self.verbose, self.class_labels)
+            df = df.append(report)
 
 
         return df

@@ -125,7 +125,7 @@ class StochasticKFoldsCV:
             self.model_repeats = model_repeats
 
 
-    def fit_predict(self, X, y, X_test=None, y_test=None, shuffle_test=True, threshold=None, stratify=True):
+    def fit_predict(self, X, y, X_test=None, y_test=None, threshold=None, stratify=True):
         '''
         X : pandas DataFrame
         y : pandas Series or numpy array
@@ -158,11 +158,11 @@ class StochasticKFoldsCV:
 
         for j in self.split_repeats:
             if stratify is True:
-                kfold = StratifiedKFold(n_splits=folds, random_state=j)
+                kfold = StratifiedKFold(n_splits=self.folds, random_state=j, shuffle=True)
             elif stratify is False:
-                kfold = KFold(n_splits=folds, random_state=j)
-            for train_index, test_index in kfold.split(X,y):
-                X_, X_test_ = X[train_index], X[test_index]
+                kfold = KFold(n_splits=self.folds, random_state=j, shuffle=True)
+            for train_index, test_index in kfold.split(X.to_numpy(),y):
+                X_, X_test_ = X.to_numpy()[train_index], X.to_numpy()[test_index]
                 y_, y_test_ = y[train_index], y[test_index]
                 if self.initial_split_seed is not None:
                     X_ = X_.append(_X_train)
@@ -208,7 +208,7 @@ class StochasticKFoldsCV:
 
                 # Run models
                 report = _model_repeat(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, self.verbose, self.class_labels)
-                report['fold'] = train_index
+                #report['fold'] = train_index
                 df = df.append(report)
 
             
