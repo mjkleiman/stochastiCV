@@ -57,10 +57,6 @@ class StochasticSubsamplingCV:
         imblearn.undersampling.EditedNearestNeighbours
     categorical_features : list of categorical features in data, used in SMOTENC
     avg_strategy : see 'average' in sklearn's roc_auc_score (default = 'macro')
-    verbose : 0, 1, or 2
-        0 : disables all output
-        1 : shows split/repeat number
-        2 : adds confusion_matrix
     initial_split_seed : int
         If this value is specified, data will be initially split once. Use this 
         to match previously used train/test splits (sklearn implementation) and 
@@ -68,13 +64,11 @@ class StochasticSubsamplingCV:
         testing side of the split may be shuffled into the training/testing 
         sets, but the train side of the initial split will never appear in this 
         function's test set. If this value is not specified, all data will be 
-        shuffled. This initial split is useful if a holdout test set will be 
-        used for final testing (NOTE: do not test holdout sets)
-    initial_split_ratio : float
+        shuffled.
+    initial_split_ratio : float (default=0.25)
         If initial_split_seed is specified, this ratio will be used to split 
         initial train/test ratios. Small train splits are preferred to enable 
         more data to be shuffled and to reduce overfitting.
-        This value replaces "train_size" in sklearn's train_test_split.
         NOTE: the train data from this initial split will be added to all 
         training sets generated 
     '''
@@ -90,8 +84,7 @@ class StochasticSubsamplingCV:
         over_strategy='auto', 
         under_strategy='auto',
         categorical_features=None,
-        avg_strategy='macro', 
-        verbose=0, 
+        avg_strategy='macro',
         initial_split_seed=None, 
         initial_split_ratio=0.25
 
@@ -104,7 +97,6 @@ class StochasticSubsamplingCV:
         self.over_strategy = over_strategy
         self.under_strategy = under_strategy
         self.avg_strategy = avg_strategy
-        self.verbose = verbose
         self.initial_split_seed = initial_split_seed
         self.initial_split_ratio = initial_split_ratio
         self.test_ratio = test_ratio
@@ -125,7 +117,7 @@ class StochasticSubsamplingCV:
             self.model_repeats = model_repeats
 
 
-    def fit_predict(self, X, y, X_test=None, y_test=None, threshold=None, stratify=True):
+    def fit_predict(self, X, y, X_test=None, y_test=None, threshold=None, stratify=True, verbose=0):
         '''
         X : pandas DataFrame
         y : pandas Series or numpy array
@@ -147,6 +139,10 @@ class StochasticSubsamplingCV:
         stratify : bool (default=True)
             If True, preserve proportions of classes within splits. Randomize 
             splits if False.
+        verbose : 0, 1, or 2
+            0 : disables all output
+            1 : shows split/repeat number
+            2 : adds confusion_matrix
         '''
         df = pd.DataFrame()
         if stratify is True:
@@ -203,7 +199,7 @@ class StochasticSubsamplingCV:
                 X_test_,y_test_ = smenn.fit_resample(X_test_,y_test_)
 
             # Run models
-            report = _model_repeat(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, self.verbose, self.class_labels)
+            report = _model_repeat(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, verbose, self.class_labels)
             df = df.append(report)
 
 

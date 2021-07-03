@@ -30,13 +30,7 @@ class StochasticKFoldsCV:
         (ex: 0,1,2) then specify class_labels
     class_labels : list of strings or ints
         Set labels of classes if not numerical from 0. Specifying class_labels 
-        will disable num_classes
-    test_ratio : float
-        Used in sklearn.metrics.train_test_split to calculate the proportion of 
-        validation and test sets vs training data. 
-        Test set is calculated first, followed by validation set, so if the same
-        number is used for both the test set will be larger than the validation 
-        set.
+        will disregard num_classes and derive number of classes from the labels
     imbalanced_train : default=None
         'over' : utilize imbalanced-learn's SMOTE (or SMOTENC if 
             categorical_features are defined) to oversample the train set
@@ -57,10 +51,6 @@ class StochasticKFoldsCV:
         imblearn.undersampling.EditedNearestNeighbours
     categorical_features : list of categorical features in data, used in SMOTENC
     avg_strategy : see 'average' in sklearn's roc_auc_score (default = 'macro')
-    verbose : 0, 1, or 2
-        0 : disables all output
-        1 : shows split/repeat number
-        2 : adds confusion_matrix
     initial_split_seed : int
         If this value is specified, data will be initially split once. Use this 
         to match previously used train/test splits (sklearn implementation) and 
@@ -92,7 +82,6 @@ class StochasticKFoldsCV:
         under_strategy='auto',
         categorical_features=None,
         avg_strategy='macro', 
-        verbose=0, 
         initial_split_seed=None, 
         initial_split_ratio=0.25
     ):
@@ -105,7 +94,6 @@ class StochasticKFoldsCV:
         self.over_strategy = over_strategy
         self.under_strategy = under_strategy
         self.avg_strategy = avg_strategy
-        self.verbose = verbose
         self.initial_split_seed = initial_split_seed
         self.initial_split_ratio = initial_split_ratio
         
@@ -125,7 +113,7 @@ class StochasticKFoldsCV:
             self.model_repeats = model_repeats
 
 
-    def fit_predict(self, X, y, X_test=None, y_test=None, threshold=None, stratify=True):
+    def fit_predict(self, X, y, X_test=None, y_test=None, threshold=None, stratify=True, verbose=0):
         '''
         X : pandas DataFrame
         y : pandas Series or numpy array
@@ -147,8 +135,15 @@ class StochasticKFoldsCV:
         stratify : bool (default=True)
             If True, preserve proportions of classes within splits. Randomize 
             splits if False.
+        verbose : 0, 1, or 2
+            0 : disables all output
+            1 : shows split/repeat number
+            2 : adds confusion_matrix
         '''
         df = pd.DataFrame()
+        X = np.asarray(X) # Ensure formatted as numpy array
+        y = np.asarray(y) # Ensure formatted as numpy array
+
         if self.initial_split_seed is not None:
             if stratify is True:
                 _X_train, X, _y_train, y = train_test_split(X, y.values.ravel(), train_size=self.initial_split_ratio, random_state=self.initial_split_seed, stratify=y)
@@ -161,8 +156,8 @@ class StochasticKFoldsCV:
                 kfold = StratifiedKFold(n_splits=self.folds, random_state=j, shuffle=True)
             elif stratify is False:
                 kfold = KFold(n_splits=self.folds, random_state=j, shuffle=True)
-            for train_index, test_index in kfold.split(X.to_numpy(),y):
-                X_, X_test_ = X.to_numpy()[train_index], X.to_numpy()[test_index]
+            for train_index, test_index in kfold.split(X,y):
+                X_, X_test_ = X[train_index], X[test_index]
                 y_, y_test_ = y[train_index], y[test_index]
                 if self.initial_split_seed is not None:
                     X_ = X_.append(_X_train)
@@ -207,7 +202,7 @@ class StochasticKFoldsCV:
                     X_test_,y_test_ = smenn.fit_resample(X_test_,y_test_)
 
                 # Run models
-                report = _model_repeat(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, self.verbose, self.class_labels)
+                report = _model_repeat(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, verbose, self.class_labels)
                 #report['fold'] = train_index
                 df = df.append(report)
 
