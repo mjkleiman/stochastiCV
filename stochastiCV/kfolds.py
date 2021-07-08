@@ -7,7 +7,7 @@ from sklearn.metrics import (multilabel_confusion_matrix, confusion_matrix,
 from imblearn.over_sampling import SMOTENC, SMOTE
 from imblearn.combine import SMOTEENN
 from imblearn.under_sampling import EditedNearestNeighbours
-from ._utils import _multiclass_threshold, _model_repeat
+from ._utils import _multiclass_threshold, _model_repeat_clf
 
 
 class StochasticKFoldsCV:
@@ -202,8 +202,7 @@ class StochasticKFoldsCV:
                     X_test_,y_test_ = smenn.fit_resample(X_test_,y_test_)
 
                 # Run models
-                report = _model_repeat(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, verbose, self.class_labels)
-                #report['fold'] = train_index
+                report = _model_repeat_clf(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, verbose, self.class_labels)
                 df = df.append(report)
 
             

@@ -21,6 +21,9 @@ scv = StochasticSubsamplingCV(rf, split_repeats=5, model_repeats=5, num_classes=
 
 # K Folds
 scv = StochasticKFoldsCV(rf, folds=3, split_repeats=5, model_repeats=5, num_classes=3)
+
+# Leave P Out
+scv = StochasticLeavePOutCV(rf, p=1, model_repeats=5)
 ```
 The machine is then ran by calling the ```.fit_predict()``` function. 
 ```
@@ -62,6 +65,5 @@ For example, in some medical applications, specificity (negative class recall) i
 ## To Do:
 - Add compatibility with regression models including RandomForestRegressor, and include outputs applicable to regressors
 - Enable output of overall confusion matrix: option for either sum total of all repeats, or averaged 
-- Implementation of Leave One Out CV (model repeats only)
 - Addition of area under ROC and Precision-Recall curves
 - Keras and PyTorch implementations
