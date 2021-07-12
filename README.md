@@ -7,6 +7,13 @@ This function outputs metrics in a pandas DataFrame, including (for classificati
 
 If model stochasticity is desired (running model multiple times with varying outputs), only ensemble models and neural networks (e.g., multilayer perceptron) are supported. This is due to the use of stochasticity (randomness) within these types of models, to either assign initial weights (neural networks), in bootstrapping, or when searching for the best split at each node (ensemble models).
 
+## Installation
+
+To install the current release:
+```
+$ pip install stochastiCV
+```
+
 ## API
 
 A stochastiCV machine based on either subsampling or *k*-folds can be called, with required parameters including the scikit-learn model, number of times splits are repeated, and number of times models are repeated. When classifiers are used, the number of classes is also required to be specified (if more than 2). In a *k*-folds  machine, the number of folds are also specified.
