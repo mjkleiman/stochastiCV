@@ -1,3 +1,7 @@
+'''
+NOTE: This functionality is currently temporarily disabled, due to bugs. See the TO DO on the README.md for more information.
+'''
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split, LeavePOut
