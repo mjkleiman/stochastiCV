@@ -7,30 +7,41 @@ from sklearn.metrics import (multilabel_confusion_matrix, confusion_matrix,
 from imblearn.over_sampling import SMOTENC, SMOTE
 from imblearn.combine import SMOTEENN
 from imblearn.under_sampling import EditedNearestNeighbours
-from ._utils import _multiclass_threshold, _model_repeat_clf
+from ._utils import (_model_repeat_clf, 
+    _model_repeat_reg, _model_ID, _clf_balancing)
 
 
 class StochasticKFoldsCV:
     '''
-    model :  any scikit-learn classifier 
-        Currently tested with randomforestclassifier, gradientboostedclassifier.
-        Output metrics are tuned towards classifiers but future updates will 
-        implement the ability to call regression models
+    model :  any scikit-learn model 
+        Currently tested with randomforestclassifier, gradientboostedclassifier,
+        randomforestregressor, gradientboostedregressor.
+        Model stochasticity only functions in models where random_state 
+        modification alters outputs.
+    model_type : string (default = 'auto')
+        Specify whether the model is a classifier or regressor
+        Set equal to 'clf' for classifier, or 'reg' for regressor.
+        Default 'auto' will automatically detect some scikit-learn models, 
+        but if this fails you may specify the type manually to bypass the check.
     folds : int
-
+        Specify number of folds that dataset is split into
     split_repeats :  int or list of ints
         Determine number of times KFolds splits will be performed.
         Specify a list of seed values to be used, or specify an int to 
-        deterministically generate that number of seeds
+        deterministically generate that number of seeds.
+        Splitting will always occur in this function. To disable splitting, use
+        the straight.StochastiCV function
     model_repeats :  int or list of ints
         Specify a list of seed values to be used, or specify an int to 
         deterministically generate that number of seeds
     num_classes : int
         Number of classes. If classes are not arranged in numerical format 
-        (ex: 0,1,2) then specify class_labels
+        (ex: 0,1,2) then specify class_labels.
+        Ignored if model_type set to 'reg'.
     class_labels : list of strings or ints
         Set labels of classes if not numerical from 0. Specifying class_labels 
-        will disregard num_classes and derive number of classes from the labels
+        will disregard num_classes and derive number of classes from the labels.
+        Ignored if model_type set to 'reg'.
     imbalanced_train : default=None
         'over' : utilize imbalanced-learn's SMOTE (or SMOTENC if 
             categorical_features are defined) to oversample the train set
@@ -86,6 +97,7 @@ class StochasticKFoldsCV:
         initial_split_ratio=0.25
     ):
         self.model = model
+        self.model_type = model_type
         self.folds = folds
         self.num_classes = num_classes
         self.imbalanced_train = imbalanced_train
@@ -112,8 +124,15 @@ class StochasticKFoldsCV:
         else:
             self.model_repeats = model_repeats
 
+        if model_type == 'auto':
+            self.model_type = _model_ID(model)
+        elif model_type in ('clf', 'reg'):
+            self.model_type = model_type
+        else:
+            raise TypeError('Variable model_type must indicate either a classifier (clf) or regressor (reg)')
 
-    def fit_predict(self, X, y, X_test=None, y_test=None, threshold=None, stratify=True, verbose=0):
+
+    def fit_predict(self, X, y, X_test=None, y_test=None, threshold=None, stratify=True, raw_output=False, verbose=0):
         '''
         X : pandas DataFrame
         y : pandas Series or numpy array
@@ -123,6 +142,8 @@ class StochasticKFoldsCV:
             Threshold applied to predicted probabilities (predict_proba in 
             sklearn), where the given class is selected if its probability is 
             greater than or equal to the given threshold number.
+            Ignored if model_type set to 'reg'.
+
             If a float is given, it will be used as the threshold for predicting
                 the positive class. 
             If a list of floats is given, each will be used for the respective 
@@ -135,6 +156,9 @@ class StochasticKFoldsCV:
         stratify : bool (default=True)
             If True, preserve proportions of classes within splits. Randomize 
             splits if False.
+        raw_output : bool (default=False)
+            Currently does nothing. Future versions will enable for raw outputs
+            of predicted vs true labels, for manual processing (e.g. ROC plots)
         verbose : 0, 1, or 2
             0 : disables all output
             1 : shows split/repeat number
@@ -151,60 +175,47 @@ class StochasticKFoldsCV:
                 _X_train, X, _y_train, y = train_test_split(X, y.values.ravel(), train_size=self.initial_split_ratio, random_state=self.initial_split_seed, stratify=None)
             y = pd.Series(y)
 
-        for j in self.split_repeats:
-            if stratify is True:
-                kfold = StratifiedKFold(n_splits=self.folds, random_state=j, shuffle=True)
-            elif stratify is False:
+        if self.model_type == 'clf':
+            for j in self.split_repeats:
+                if stratify is True:
+                    kfold = StratifiedKFold(n_splits=self.folds, random_state=j, shuffle=True)
+                elif stratify is False:
+                    kfold = KFold(n_splits=self.folds, random_state=j, shuffle=True)
+                for train_index, test_index in kfold.split(X,y):
+                    X_, X_test_ = X[train_index], X[test_index]
+                    y_, y_test_ = y[train_index], y[test_index]
+                    if self.initial_split_seed is not None:
+                        X_ = X_.append(_X_train)
+                        y_ = np.append(y_,_y_train)
+                    if X_test is not None:
+                        X_test_ = X_test_.append(X_test)
+                        y_test_ = np.append(y_test_,y_test)                
+
+                    X_, y_, X_test_, y_test_ = _clf_balancing(
+                        X_, y_, X_test_, y_test_, j, self.imbalanced_train, 
+                        self.imbalanced_test, self.over_strategy, 
+                        self.under_strategy, self.categorical_features)
+
+                    # Run models
+                    report = _model_repeat_clf(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, verbose, self.class_labels)
+                    df = df.append(report)
+
+        if self.model_type == 'reg':
+            for j in self.split_repeats:
                 kfold = KFold(n_splits=self.folds, random_state=j, shuffle=True)
-            for train_index, test_index in kfold.split(X,y):
-                X_, X_test_ = X[train_index], X[test_index]
-                y_, y_test_ = y[train_index], y[test_index]
-                if self.initial_split_seed is not None:
-                    X_ = X_.append(_X_train)
-                    y_ = np.append(y_,_y_train)
-                if X_test is not None:
-                    X_test_ = X_test_.append(X_test)
-                    y_test_ = np.append(y_test_,y_test)                
+                for train_index, test_index in kfold.split(X,y):
+                    X_, X_test_ = X[train_index], X[test_index]
+                    y_, y_test_ = y[train_index], y[test_index]
+                    if self.initial_split_seed is not None:
+                        X_ = X_.append(_X_train)
+                        y_ = np.append(y_,_y_train)
+                    if X_test is not None:
+                        X_test_ = X_test_.append(X_test)
+                        y_test_ = np.append(y_test_,y_test)
 
-                if self.imbalanced_train == 'over':
-                    if self.categorical_features is None:
-                        sm = SMOTE(random_state=j, sampling_strategy=self.over_strategy)
-                    else:
-                        sm = SMOTENC(categorical_features=self.categorical_features, sampling_strategy=self.over_strategy, random_state=j)
-                    X_, y_ = sm.fit_resample(X_,y_)
-                if self.imbalanced_test == 'over':
-                    if self.categorical_features is None:
-                        sm = SMOTE(random_state=j, sampling_strategy=self.over_strategy)
-                    else:
-                        sm = SMOTENC(categorical_features=self.categorical_features, sampling_strategy=self.over_strategy, random_state=j)
-                    X_test_,y_test_ = sm.fit_resample(X_test_,y_test_)
-                if self.imbalanced_train == 'under':
-                    enn = EditedNearestNeighbours(sampling_strategy=self.under_strategy)
-                    X_,y_ = enn.fit_resample(X_,y_)
-                if self.imbalanced_test == 'under':
-                    enn = EditedNearestNeighbours(sampling_strategy=self.under_strategy)
-                    X_test_,y_test_ = enn.fit_resample(X_test_,y_test_) # Add option to call test resampling
-                if self.imbalanced_train == 'overunder':
-                    if self.categorical_features is None:
-                        sm = SMOTE(random_state=j, sampling_strategy=self.over_strategy)
-                    else:
-                        sm = SMOTENC(categorical_features=self.categorical_features, sampling_strategy=self.over_strategy, random_state=j)
-                    enn = EditedNearestNeighbours(sampling_strategy=self.under_strategy)
-                    smenn = SMOTEENN(sampling_strategy=self.over_strategy, random_state=j, smote=sm, enn=enn)
-                    X_, y_ = smenn.fit_resample(X_,y_)
-                if self.imbalanced_test == 'overunder':
-                    if self.categorical_features is None:
-                        sm = SMOTE(random_state=j, sampling_strategy=self.over_strategy)
-                    else:
-                        sm = SMOTENC(categorical_features=self.categorical_features, sampling_strategy=self.over_strategy, random_state=j)
-                    enn = EditedNearestNeighbours(sampling_strategy=self.under_strategy)
-                    smenn = SMOTEENN(sampling_strategy=self.over_strategy, random_state=j, smote=sm, enn=enn)
-                    X_test_,y_test_ = smenn.fit_resample(X_test_,y_test_)
+                    # Placeholder location for future regression augmentation/balancing
 
-                # Run models
-                report = _model_repeat_clf(X_, y_, X_test_, y_test_, threshold, self.model, self.model_repeats, self.num_classes, self.avg_strategy, j, verbose, self.class_labels)
-                df = df.append(report)
-
-            
+                    report = _model_repeat_reg(X_, y_, X_test_, y_test_, self.model, self.model_repeats, j, verbose)
+                    df = df.append(report)
 
         return df

@@ -4,5 +4,5 @@
 # external requirements
 numpy
 pandas
-scikit-learn
+scikit-learn=0.24.0
 imbalanced-learn

@@ -1,3 +1,4 @@
 from stochastiCV.subsample import StochasticSubsamplingCV
 from stochastiCV.kfolds import StochasticKFoldsCV
 from stochastiCV.exhaustive import StochasticLeavePOutCV
+from stochastiCV.straight import StochasticMachine

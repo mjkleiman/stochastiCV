@@ -11,7 +11,7 @@ If model stochasticity is desired (running model multiple times with varying out
 
 A stochastiCV machine based on either subsampling or *k*-folds can be called, with required parameters including the scikit-learn model, number of times splits are repeated, number of times models are repeated, and the number of classes. In a *k*-folds  machine, the number of folds are also specified.
 ```
-from stochastiCV import StochasticSubsamplingCV, StochasticKFoldsCV
+from stochastiCV import StochasticSubsamplingCV, StochasticKFoldsCV, StochasticLeavePOutCV, StochasticMachine
 from sklearn.ensemble import RandomForestClassifier
 
 rf = RandomForestClassifier()
@@ -24,6 +24,9 @@ scv = StochasticKFoldsCV(rf, folds=3, split_repeats=5, model_repeats=5, num_clas
 
 # Leave P Out
 scv = StochasticLeavePOutCV(rf, p=1, model_repeats=5)
+
+# No splitting, model repeats only
+scv = StochasticMachine(rf, model_repeats=5)
 ```
 The machine is then ran by calling the ```.fit_predict()``` function. 
 ```
@@ -63,7 +66,6 @@ In some situations, it is beneficial to manually set the threshold for determini
 For example, in some medical applications, specificity (negative class recall) is more useful than sensitivity (positive class recall) -- assigning the threshold to be a lower number may result in higher specificities at the expense of lower sensitivities.
 
 ## To Do:
-- Add compatibility with regression models including RandomForestRegressor, and include outputs applicable to regressors
 - Enable output of overall confusion matrix: option for either sum total of all repeats, or averaged 
-- Addition of area under ROC and Precision-Recall curves
+- Addition of area under ROC and Precision-Recall curves for classifiers
 - Keras and PyTorch implementations
