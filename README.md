@@ -35,16 +35,16 @@ scv = StochasticMachine(rf, model_repeats=5)
 The API will automatically detect whether a given model is a regressor or classifier, however it will only do so for scikit-learn models. If you wish to pass another type of model into the machine, you can specify whether the model is a regressor or classifier by specifying ```model_type='clf'``` for a classifier or ```model_type='reg'``` for a regressor.
 
 
-The machine is then ran by calling the ```.fit_predict()``` function. 
+The machine is then ran by calling the ```.fit_predict()``` function, similarly to sklearn. 
 ```
-out = scv.fit_repeat(X, y)
+out = scv.fit_predict(X, y)
 ```
 The function will split the inputted data (X for features, y for
  classes) into *j* number of splits, multiplied by *k* folds if applicable. The model is also repeated *h* times, as specified. The data is stratified by default, but this can be disabled by setting ```stratify=False```. 
 
 If you choose for data shuffling to be disabled, and you wish to specify a train and test set and only enable repeats due to model stochasticity, you may specify a test set as follows:
 ```
-out = scv.fit_repeat(X_train, y_train, X_test=X_test, y_test=y_test)
+out = scv.fit_predict(X_train, y_train, X_test=X_test, y_test=y_test)
 ```
 This will disable the ```split_repeats``` parameter, and only run the model the amount of times specified in the ```model_repeats``` and (in *k*-folds) the ```folds``` parameters.
 
